@@ -1,0 +1,1 @@
+DATABASE_URL="postgresql://apollo_admin:apollo_1234@localhost:8000/apollo_solutions_db?schema=public”

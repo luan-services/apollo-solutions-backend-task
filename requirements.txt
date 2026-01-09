@@ -1,0 +1,7 @@
+fastapi
+uvicorn[standard]
+sqlmodel            # ORM
+psycopg2-binary     # postgreDriver
+pandas              # for reading csv
+python-multipart    # for file upload
+python-dotenv
