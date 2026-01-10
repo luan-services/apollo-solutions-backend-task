@@ -11,6 +11,9 @@ from app.models.product import Product
 
 router = APIRouter(prefix="/products", tags=["products"])
 
+# SessionDep must be passed to all routes function, it is a abreviation of the session object on database.py and it is used to comunicate with the db
+# response_model is the same as a 'schema' for the response on the db, it ensures the responses are exactly an Product object
+
 @router.get("/", response_model=List[Product])
 async def read_products(session: SessionDep):
     return session.exec(select(Product)).all()
@@ -53,21 +56,51 @@ async def delete_product(product_id: int, session: SessionDep):
     return {"message": "Product Deleted"}
 
 @router.post("/import_csv")
-def import_products_csv(session: SessionDep, file: UploadFile = File(...)):
-    contents = file.file.read()
-    df = pd.read_csv(io.BytesIO(contents))
+async def import_products_csv(session: SessionDep, file: UploadFile):
+    # if it is not a .csv file, raise Error
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV.")
+
+    contents = await file.read()
+    
+    try:
+        df = pd.read_csv(io.BytesIO(contents))
+        df = df[['id', 'name', 'description', 'price', 'brand', 'category_id']].dropna()
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error Reading CSV: {str(e)}")
+
+    # getting all ids on the csv and turning into array
+    csv_ids = df['id'].tolist()
+    # searching on the database all ids that already exists
+    statement = select(Product.id).where(Product.id.in_(csv_ids))
+    # turning the list of ids into a set is a good practice to reduce search time
+    existing_ids = session.exec(statement).all()
+    existing_ids_set = set(existing_ids)
+
     count = 0
-    for index, row in df.iterrows():
-        if not session.get(Product, row['id']):
+    # store new products to be added
+    new_products = []
+    
+    # turning into a dict
+    records = df.to_dict(orient="records")
+
+    for row in records:
+        if row['id'] not in existing_ids_set:
             product = Product(
                 id=row['id'],
                 name=row['name'],
                 description=row['description'],
-                price=float(row['price']),
+                price=float(row['price']), 
                 brand=row['brand'],
                 category_id=int(row['category_id'])
             )
-            session.add(product)
+            new_products.append(product)
             count += 1
-    session.commit()
-    return {"message": f"Succesfully Added {count} Products"}
+
+    # save all categories at once
+    if new_products:
+        session.add_all(new_products)
+        session.commit()
+
+    return {"message": f"Successfully added {count} new products."}

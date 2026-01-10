@@ -28,6 +28,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# CORS middleware to allow api calls from web
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -38,6 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# register all routes from routes folder
 app.include_router(api_router, prefix="/api")
 
 @app.get("/")

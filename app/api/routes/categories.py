@@ -10,6 +10,9 @@ from app.models.category import Category
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
+# SessionDep must be passed to all routes function, it is a abreviation of the session object on database.py and it is used to comunicate with the db
+# response_model is the same as a 'schema' for the response on the db, it ensures the responses are exactly an Category object
+
 @router.get("/", response_model=List[Category])
 def read_categories(session: SessionDep):
     return session.exec(select(Category)).all()
@@ -52,14 +55,44 @@ async def delete_category(category_id: int, session: SessionDep):
     return {"message": "Category Deleted"}
 
 @router.post("/import_csv")
-def import_categories_csv( session: SessionDep, file: UploadFile = File(...)):
-    contents = file.file.read()
-    df = pd.read_csv(io.BytesIO(contents))
+async def import_categories_csv(session: SessionDep, file: UploadFile):
+    # if it is not a .csv file, raise Error
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV.")
+
+    contents = await file.read() 
+    
+    try:
+        df = pd.read_csv(io.BytesIO(contents))
+        df = df[['id', 'name']].dropna() 
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error Reading CSV: {str(e)}")
+
+    # getting all ids on the csv and turning into array
+    csv_ids = df['id'].tolist()
+    # searching on the database all ids that already exists
+    statement = select(Category.id).where(Category.id.in_(csv_ids))
+    existing_ids = session.exec(statement).all()
+    # turning the list of ids into a set is a good practice to reduce search time
+    existing_ids_set = set(existing_ids)
+
     count = 0
-    for index, row in df.iterrows():
-        if not session.get(Category, row['id']):
+    # store new categories to be added
+    new_categories = []
+
+    # turning into a dict
+    records = df.to_dict(orient="records") 
+
+    for row in records:
+        if row['id'] not in existing_ids_set:
             category = Category(id=row['id'], name=row['name'])
-            session.add(category)
+            new_categories.append(category)
             count += 1
-    session.commit()
-    return {"message": f"Succesfully Added {count} Categories"}
+    
+    # save all categories at once
+    if new_categories:
+        session.add_all(new_categories)
+        session.commit()
+
+    return {"message": f"Successfully added {count} new categories."}
