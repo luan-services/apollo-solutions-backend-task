@@ -19,5 +19,5 @@ class Product(SQLModel, table=True):
     category_id: int = Field(foreign_key="category.id")
     
     # we must set the relationship here, this does not create a table, it only works as a helper if you want to do product.sales
-    category: Category = Relationship(back_populates="products")
+    category: "Category" = Relationship(back_populates="products")
     sales: List["Sale"] = Relationship(back_populates="product")

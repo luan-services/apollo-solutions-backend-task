@@ -18,4 +18,4 @@ class Sale(SQLModel, table=True):
     product_id: int = Field(foreign_key="product.id")
 
     # we must set the relationship here, this does not create a table, it only works as a helper if you want to do sale.product
-    product: Product = Relationship(back_populates="sales")
+    product: "Product" = Relationship(back_populates="sales")
