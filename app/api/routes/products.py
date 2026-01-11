@@ -15,8 +15,20 @@ router = APIRouter(prefix="/products", tags=["products"])
 # response_model is the same as a 'schema' for the response on the db, it ensures the responses are exactly an Product object
 
 @router.get("/", response_model=List[Product])
-async def read_products(session: SessionDep):
-    return session.exec(select(Product)).all()
+async def read_products(session: SessionDep, category_id: int | None, brand: str | None, min_price: float | None, max_price: float | None):
+    query = select(Product)
+
+    if category_id:
+        query = query.where(Product.category_id == category_id)
+    if brand:
+        query = query.where(Product.brand == brand)
+
+    if min_price is not None:
+        query = query.where(Product.price >= min_price)
+    if max_price is not None:
+        query = query.where(Product.price <= max_price)
+    
+    return session.exec(query).all()
 
 @router.get("/{product_id}", response_model=Product)
 def read_product(product_id: int, session: SessionDep):
@@ -59,7 +71,7 @@ async def delete_product(product_id: int, session: SessionDep):
 async def import_products_csv(session: SessionDep, file: UploadFile):
     # if it is not a .csv file, raise Error
     if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV.")
+        raise HTTPException(status_code=400, detail="File Must be a CSV")
 
     contents = await file.read()
     

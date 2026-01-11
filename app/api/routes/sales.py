@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 import pandas as pd
 import io
-from datetime import datetime
+from datetime import datetime, date
 from sqlmodel import select
 from typing import List
 from app.config.database import SessionDep
@@ -15,8 +15,20 @@ router = APIRouter(prefix="/sales", tags=["sales"])
 # response_model is the same as a 'schema' for the response on the db, it ensures the responses are exactly an Sale object
 
 @router.get("/", response_model=List[Sale])
-async def read_sales(session: SessionDep):
-    return session.exec(select(Sale)).all()
+async def read_sales(session: SessionDep, product_id: int | None, start_date: date | None, end_date: date | None):
+    query = select(Sale)
+
+    if product_id:
+        query = query.where(Sale.product_id == product_id)
+    
+    if start_date:
+        query = query.where(Sale.date >= start_date)
+    if end_date:
+        query = query.where(Sale.date <= end_date)
+
+    query = query.order_by(Sale.date.desc())
+
+    return session.exec(query).all()
 
 @router.get("/{sale_id}", response_model=Sale)
 def read_sale(sale_id: int, session: SessionDep):
@@ -59,7 +71,7 @@ async def delete_sale(sale_id: int, session: SessionDep):
 async def import_sales_csv(session: SessionDep, file: UploadFile):
     # if it is not a .csv file, raise Error
     if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV.")
+        raise HTTPException(status_code=400, detail="File Must be a CSV")
 
     contents = await file.read()
 

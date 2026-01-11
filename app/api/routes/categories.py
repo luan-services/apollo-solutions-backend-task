@@ -21,7 +21,7 @@ def read_categories(session: SessionDep):
 def read_category(category_id: int, session: SessionDep):
     category = session.get(Category, category_id)
     if not category:
-        raise HTTPException(status_code=404, detail="Categoria não encontrada")
+        raise HTTPException(status_code=404, detail="Category Not Found")
     return category
 
 @router.post("/", response_model=Category)
@@ -58,7 +58,7 @@ async def delete_category(category_id: int, session: SessionDep):
 async def import_categories_csv(session: SessionDep, file: UploadFile):
     # if it is not a .csv file, raise Error
     if not file.filename.endswith('.csv'):
-        raise HTTPException(status_code=400, detail="O arquivo deve ser um CSV.")
+        raise HTTPException(status_code=400, detail="File Must be a CSV")
 
     contents = await file.read() 
     
