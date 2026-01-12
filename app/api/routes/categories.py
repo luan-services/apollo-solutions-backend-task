@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, File, UploadFile
 import pandas as pd
 import io
-from sqlmodel import select, func
+from sqlmodel import select
 from typing import List
 from app.config.database import SessionDep
 from app.models.category import Category
@@ -96,16 +96,3 @@ async def import_categories_csv(session: SessionDep, file: UploadFile):
         session.commit()
 
     return {"message": f"Successfully added {count} new categories."}
-
-
-@router.get("/dashboard/total_categories")
-async def get_dashboard_total_categories(session: SessionDep):
-
-    total_categories = session.exec(select(func.count(Category.id))).one()
-
-    if total_categories is None:
-        total_categories = 0
-
-    return {
-        "total_categories": total_categories
-    }

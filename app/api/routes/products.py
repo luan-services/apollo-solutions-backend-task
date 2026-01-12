@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File
 import pandas as pd
 import io
-from sqlmodel import select, func
+from sqlmodel import select
 from typing import List
 from app.config.database import SessionDep
 from app.models.product import Product
@@ -116,16 +116,3 @@ async def import_products_csv(session: SessionDep, file: UploadFile):
         session.commit()
 
     return {"message": f"Successfully added {count} new products."}
-
-
-@router.get("/dashboard/total_products")
-async def get_dashboard_total_products(session: SessionDep):
-
-    total_products = session.exec(select(func.count(Product.id))).one()
-
-    if total_products is None:
-        total_products = 0
-
-    return {
-        "total_products": total_products,
-    }

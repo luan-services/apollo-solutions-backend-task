@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 import pandas as pd
 import io
 from datetime import datetime, date
-from sqlmodel import select, func
+from sqlmodel import select
 from typing import List
 from app.config.database import SessionDep
 from app.models.sale import Sale
@@ -120,37 +120,3 @@ async def import_sales_csv(session: SessionDep, file: UploadFile):
         session.commit()
 
     return {"message": f"Successfully added {count} new sales."}
-
-@router.get("/dashboard/revenue")
-async def get_dashboard_revenue(session: SessionDep):
-    total_revenue = session.exec(select(func.sum(Sale.total_price))).one()
-    
-    if total_revenue is None:
-        total_revenue = 0
-
-    total_sales = session.exec(select(func.count(Sale.id))).one()
-    
-    if total_sales is None:
-        total_sales = 0
-
-    sales = session.exec(select(Sale)).all()
-    
-    sales_by_month_dict = {}
-    
-    for sale in sales:
-        month_key = sale.date.strftime("%Y-%m")
-        current_val = sales_by_month_dict.get(month_key, 0)
-        sales_by_month_dict[month_key] = current_val + sale.total_price
-
-    monthly_data = [
-        {"date": key, "total": value} 
-        for key, value in sorted(sales_by_month_dict.items())
-    ]
-
-    return {
-        "summary": {
-            "total_revenue": total_revenue,
-            "total_sales": total_sales,
-        },
-        "monthly_data": monthly_data
-    }
