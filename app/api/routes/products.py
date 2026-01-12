@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, File
 import pandas as pd
 import io
 from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from app.config.database import SessionDep
 from app.models.product import Product
@@ -63,8 +64,17 @@ async def delete_product(product_id: int, session: SessionDep):
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product Not Found")
-    session.delete(product)
-    session.commit()
+
+    try:
+        session.delete(product)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail="Não é possível deletar este produto pois ele está relacionado à uma ou mais vendas."
+        )
+
     return {"message": "Product Deleted"}
 
 @router.post("/import_csv")

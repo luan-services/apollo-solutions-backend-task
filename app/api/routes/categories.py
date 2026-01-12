@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile
 import pandas as pd
 import io
 from sqlmodel import select
+from sqlalchemy.exc import IntegrityError
 from typing import List
 from app.config.database import SessionDep
 from app.models.category import Category
@@ -50,8 +51,17 @@ async def delete_category(category_id: int, session: SessionDep):
     category = session.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail="Category Not Found")
-    session.delete(category)
-    session.commit()
+
+    try:
+        session.delete(category)
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        raise HTTPException(
+            status_code=400, 
+            detail="Não é possível deletar esta categoria pois ele está relacionado à produtos ou vendas."
+        )
+
     return {"message": "Category Deleted"}
 
 @router.post("/import_csv")
