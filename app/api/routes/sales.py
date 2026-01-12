@@ -3,6 +3,7 @@ import pandas as pd
 import io
 from datetime import datetime, date
 from sqlmodel import select
+from sqlalchemy import text
 from typing import List
 from app.config.database import SessionDep
 from app.models.sale import Sale
@@ -118,5 +119,12 @@ async def import_sales_csv(session: SessionDep, file: UploadFile):
     if new_sales:
         session.add_all(new_sales)
         session.commit()
+
+        try:
+            statement = text("SELECT setval('sale_id_seq', (SELECT MAX(id) FROM sale));")
+            session.exec(statement)
+            session.commit()
+        except Exception as e:
+            print(f"Warning: Could not reset sequence: {e}")
 
     return {"message": f"Successfully added {count} new sales."}

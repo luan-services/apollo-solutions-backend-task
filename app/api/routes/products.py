@@ -3,6 +3,7 @@ import pandas as pd
 import io
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
 from typing import List
 from app.config.database import SessionDep
 from app.models.product import Product
@@ -124,5 +125,13 @@ async def import_products_csv(session: SessionDep, file: UploadFile):
     if new_products:
         session.add_all(new_products)
         session.commit()
+
+        try:
+            # Resets the 'product' table sequence
+            statement = text("SELECT setval('product_id_seq', (SELECT MAX(id) FROM product));")
+            session.exec(statement)
+            session.commit()
+        except Exception as e:
+            print(f"Warning: Could not reset sequence: {e}")
 
     return {"message": f"Successfully added {count} new products."}
